@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#080711" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icons/icon-192.svg" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <title>SocioNet</title>
+  </head>
+  <body>
+    <div id="app">
+      <section id="auth-screen" class="screen active">
+        <div class="glass card auth-card">
+          <h1>SocioNet</h1>
+          <p class="subtitle">Neon social universe for real people.</p>
+          <div class="auth-tabs">
+            <button id="login-tab" class="chip active">Login</button>
+            <button id="signup-tab" class="chip">Sign Up</button>
+          </div>
+          <form id="auth-form" class="stack">
+            <input id="name-input" placeholder="Full Name" class="input hidden" required />
+            <input id="email-input" type="email" placeholder="Email" class="input" required />
+            <input id="password-input" type="password" placeholder="Password" class="input" required />
+            <input id="avatar-input" placeholder="Profile Photo URL (optional)" class="input hidden" />
+            <button type="submit" class="btn primary">Continue</button>
+          </form>
+          <p class="hint">Only genuine users can join. Accounts are user-created and verified by email + password.</p>
+        </div>
+      </section>
+
+      <section id="main-screen" class="screen">
+        <header class="topbar glass">
+          <div>
+            <h2>SocioNet</h2>
+            <small id="user-badge"></small>
+          </div>
+          <div class="top-actions">
+            <button id="install-btn" class="btn small">Install PWA</button>
+            <button id="logout-btn" class="btn small danger">Logout</button>
+          </div>
+        </header>
+
+        <main id="content"></main>
+
+        <nav class="navbar glass">
+          <button data-tab="feed" class="nav-btn active">Feed</button>
+          <button data-tab="reels" class="nav-btn">Reels</button>
+          <button data-tab="chat" class="nav-btn">Chat</button>
+          <button data-tab="calls" class="nav-btn">Calls</button>
+          <button data-tab="maps" class="nav-btn">Maps</button>
+          <button data-tab="profile" class="nav-btn">Profile</button>
+        </nav>
+      </section>
+    </div>
+
+    <template id="feed-template">
+      <section class="pane">
+        <div class="glass card">
+          <h3>Create Post</h3>
+          <form id="post-form" class="stack">
+            <textarea id="post-text" class="input" placeholder="Share your update..." required></textarea>
+            <input id="media-url" class="input" placeholder="Image or Video URL" />
+            <select id="media-type" class="input">
+              <option value="">No media</option>
+              <option value="image">Image</option>
+              <option value="video">Video</option>
+            </select>
+            <button class="btn primary">Post</button>
+          </form>
+        </div>
+        <div class="glass card">
+          <h3>Create Story (24h)</h3>
+          <form id="story-form" class="stack row">
+            <input id="story-url" class="input" placeholder="Story image URL" required />
+            <button class="btn">Add Story</button>
+          </form>
+        </div>
+        <div id="stories" class="stories-row"></div>
+        <div id="feed-list" class="stack"></div>
+      </section>
+    </template>
+
+    <template id="reels-template">
+      <section class="pane stack">
+        <div class="glass card">
+          <h3>Upload Reel</h3>
+          <form id="reel-form" class="stack">
+            <input id="reel-title" class="input" placeholder="Reel caption" required />
+            <input id="reel-url" class="input" placeholder="Public video URL" required />
+            <button class="btn primary">Publish Reel</button>
+          </form>
+        </div>
+        <div id="reel-list" class="stack"></div>
+      </section>
+    </template>
+
+    <template id="chat-template">
+      <section class="pane two-col">
+        <div class="glass card">
+          <h3>People</h3>
+          <div id="people-list" class="stack"></div>
+        </div>
+        <div class="glass card">
+          <h3 id="chat-title">Messages</h3>
+          <div id="chat-log" class="chat-log"></div>
+          <form id="chat-form" class="stack row">
+            <input id="chat-input" class="input" placeholder="Message..." required />
+            <input id="chat-file" type="file" class="input" />
+            <button class="btn">Send</button>
+          </form>
+        </div>
+      </section>
+    </template>
+
+    <template id="calls-template">
+      <section class="pane stack">
+        <div class="glass card">
+          <h3>Voice / Video Calls</h3>
+          <p class="hint">SocioNet opens secure Jitsi rooms for real-time professional calling.</p>
+          <form id="call-form" class="stack row">
+            <input id="call-room" class="input" placeholder="Room name" required />
+            <button class="btn">Start Call</button>
+          </form>
+          <iframe id="call-frame" title="Call Room" allow="camera; microphone; display-capture" class="hidden"></iframe>
+        </div>
+      </section>
+    </template>
+
+    <template id="maps-template">
+      <section class="pane stack">
+        <div class="glass card row map-controls">
+          <select id="map-layer" class="input">
+            <option value="street">Street</option>
+            <option value="satellite">Satellite</option>
+            <option value="terrain">Terrain</option>
+          </select>
+          <button id="traffic-toggle" class="btn">Traffic Overlay</button>
+          <button id="distance-toggle" class="btn">Distance Tool</button>
+        </div>
+        <div id="map" class="map"></div>
+        <div class="glass card"><strong id="distance-result">Distance: 0 km</strong></div>
+      </section>
+    </template>
+
+    <template id="profile-template">
+      <section class="pane stack">
+        <div class="glass card">
+          <h3>Profile</h3>
+          <div id="profile-card"></div>
+          <form id="profile-form" class="stack">
+            <input id="profile-name" class="input" placeholder="Display name" required />
+            <input id="profile-avatar" class="input" placeholder="Avatar URL" />
+            <button class="btn">Update Profile</button>
+          </form>
+        </div>
+        <div class="glass card">
+          <h3>People Directory</h3>
+          <div id="directory" class="stack"></div>
+        </div>
+      </section>
+    </template>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
