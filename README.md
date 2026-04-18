@@ -2,13 +2,15 @@
 
 SocioNet is a neon-styled mobile-first Progressive Web App with:
 - Login/Signup
-- Feed posts + stories
-- Reels
+- Feed posts + stories (file picker uploads)
+- Reels (file picker uploads)
 - 1:1 chat + attachments
 - Follow / unfollow
 - Calls (Jitsi embed)
 - Maps (street/satellite/terrain + traffic overlay + distance tracking)
 - Install as PWA from the app header
+
+No media URL pasting is required: users can click and select photos/videos/files directly in the app.
 
 ## Deploy on Render (Fastest)
 

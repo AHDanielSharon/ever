@@ -25,6 +25,15 @@ function loadDB() {
 function saveDB(db) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
 function getUser(id) { return loadDB().users.find((u) => u.id === id); }
 function avatar(url) { return url || "https://api.dicebear.com/8.x/shapes/svg?seed=" + Math.random().toString(36).slice(2); }
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) return resolve("");
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 function setScreen(authenticated) {
   $("auth-screen").classList.toggle("active", !authenticated);
@@ -39,19 +48,21 @@ function switchAuthMode(mode) {
   $("avatar-input").classList.toggle("hidden", mode === "login");
 }
 
-function authSubmit(e) {
+async function authSubmit(e) {
   e.preventDefault();
   const db = loadDB();
   const email = $("email-input").value.trim().toLowerCase();
   const password = $("password-input").value;
   if (state.mode === "signup") {
     if (db.users.some((u) => u.email === email)) return alert("Email already in use.");
+    const avatarFile = $("avatar-input").files[0];
+    const avatarData = await fileToDataUrl(avatarFile);
     const user = {
       id: uid(),
       name: $("name-input").value.trim() || "User",
       email,
       password,
-      avatar: avatar($("avatar-input").value.trim()),
+      avatar: avatar(avatarData),
       followers: [],
       following: [],
       createdAt: now(),
@@ -97,22 +108,33 @@ function renderTab() {
 function renderFeed() {
   const db = loadDB();
   const me = getUser(state.currentUserId);
-  $("post-form").onsubmit = (e) => {
+  $("post-form").onsubmit = async (e) => {
     e.preventDefault();
+    const mediaFile = $("media-file").files[0];
+    const mediaType = mediaFile ? (mediaFile.type.startsWith("video") ? "video" : "image") : "";
+    const mediaUrl = mediaFile ? await fileToDataUrl(mediaFile) : "";
     db.posts.unshift({
       id: uid(),
       userId: me.id,
       text: $("post-text").value,
-      mediaUrl: $("media-url").value.trim(),
-      mediaType: $("media-type").value,
+      mediaUrl,
+      mediaType,
       createdAt: now(),
     });
     saveDB(db);
     renderFeed();
   };
-  $("story-form").onsubmit = (e) => {
+  $("story-form").onsubmit = async (e) => {
     e.preventDefault();
-    db.stories.unshift({ id: uid(), userId: me.id, imageUrl: $("story-url").value.trim(), createdAt: now() });
+    const file = $("story-file").files[0];
+    if (!file) return alert("Select image/video for story.");
+    db.stories.unshift({
+      id: uid(),
+      userId: me.id,
+      mediaUrl: await fileToDataUrl(file),
+      mediaType: file.type.startsWith("video") ? "video" : "image",
+      createdAt: now(),
+    });
     saveDB(db);
     renderFeed();
   };
@@ -122,7 +144,10 @@ function renderFeed() {
     ? freshStories
         .map((s) => {
           const u = getUser(s.userId);
-          return `<article class="story"><img class="avatar" src="${u.avatar}" /><small>${u.name}</small></article>`;
+          const storyMedia = s.mediaType === "video"
+            ? `<video class="avatar" src="${s.mediaUrl}" muted playsinline></video>`
+            : `<img class="avatar" src="${s.mediaUrl}" />`;
+          return `<article class="story">${storyMedia}<small>${u.name}</small></article>`;
         })
         .join("")
     : '<p class="hint">No stories yet.</p>';
@@ -144,13 +169,15 @@ function renderFeed() {
 
 function renderReels() {
   const db = loadDB();
-  $("reel-form").onsubmit = (e) => {
+  $("reel-form").onsubmit = async (e) => {
     e.preventDefault();
+    const reelFile = $("reel-file").files[0];
+    if (!reelFile) return alert("Select a reel video.");
     db.reels.unshift({
       id: uid(),
       userId: state.currentUserId,
       title: $("reel-title").value,
-      url: $("reel-url").value,
+      url: await fileToDataUrl(reelFile),
       createdAt: now(),
     });
     saveDB(db);
@@ -177,7 +204,7 @@ function renderChat() {
     : '<p class="hint">No other users yet.</p>';
   people.querySelectorAll("button").forEach((b) => (b.onclick = () => { state.activeChatUserId = b.dataset.id; paintChat(); }));
 
-  $("chat-form").onsubmit = (e) => {
+  $("chat-form").onsubmit = async (e) => {
     e.preventDefault();
     if (!state.activeChatUserId) return alert("Select a user.");
     const key = getChatKey(me.id, state.activeChatUserId);
@@ -188,7 +215,7 @@ function renderChat() {
       senderId: me.id,
       text: $("chat-input").value,
       fileName: file?.name || "",
-      fileUrl: file ? URL.createObjectURL(file) : "",
+      fileUrl: file ? await fileToDataUrl(file) : "",
       fileType: file?.type || "",
       createdAt: now(),
     };
@@ -301,11 +328,12 @@ function renderProfile() {
   $("profile-card").innerHTML = `<div class="row"><img class="avatar" src="${me.avatar}" /><div><strong>${me.name}</strong><br/><small>${me.email}</small><br/><small>${me.followers.length} followers · ${me.following.length} following</small></div></div>`;
 
   $("profile-name").value = me.name;
-  $("profile-avatar").value = me.avatar;
-  $("profile-form").onsubmit = (e) => {
+  $("profile-avatar").value = "";
+  $("profile-form").onsubmit = async (e) => {
     e.preventDefault();
     me.name = $("profile-name").value.trim();
-    me.avatar = $("profile-avatar").value.trim() || me.avatar;
+    const avatarFile = $("profile-avatar").files[0];
+    if (avatarFile) me.avatar = await fileToDataUrl(avatarFile);
     saveDB(db);
     bootMain();
   };
